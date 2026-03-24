@@ -4,8 +4,14 @@ const logica = require('./estudiantes');
 
 let estudiantes = db.cargarDatos();
 
+// Función auxiliar para pausar antes de limpiar (Importante para que el usuario lea los mensajes)
+function pausar() {
+    prompt("\nPresione ENTER para continuar...");
+}
+
 // ================= LOGIN =================
 function login(){
+    console.clear(); // Limpiamos al iniciar el programa
     const usuarioCorrecto = "admin";
     const passwordCorrecto = "admin";
     console.log("\n--- INICIO DE SESIÓN ---");
@@ -14,9 +20,11 @@ function login(){
 
     if(usuario === usuarioCorrecto && password === passwordCorrecto){
         console.log("\n✅ Acceso concedido\n");
+        pausar();
         return true;
     } else {
         console.log("❌ Datos incorrectos");
+        pausar();
         return false;
     }
 }
@@ -24,9 +32,14 @@ function login(){
 // ================= FUNCIONES DEL SISTEMA =================
 
 function registrarEstudiante(){
+    console.clear();
+    console.log("--- REGISTRAR NUEVO ESTUDIANTE ---\n");
     let cedula = prompt("Cedula: ");
     let existe = estudiantes.find(e => e.cedula === cedula);
-    if(existe) return console.log("❌ Ya existe un estudiante con esa cedula");
+    if(existe) {
+        console.log("❌ Ya existe un estudiante con esa cedula");
+        return pausar();
+    }
 
     let nuevo = logica.crearEstudiante(
         cedula, 
@@ -39,58 +52,158 @@ function registrarEstudiante(){
 
     estudiantes.push(nuevo);
     db.guardarDatos(estudiantes);
-    console.log("✅ Estudiante registrado");
+    console.log("\n✅ Estudiante registrado con éxito");
+    pausar();
 }
 
 function mostrarEstudiantes(){
-    if(estudiantes.length === 0) return console.log("No hay estudiantes registrados");
-    estudiantes.forEach(e => {
-        console.log(`Cedula: ${e.cedula} | Nombre: ${e.nombre} ${e.apellido} | Año: ${e.año} | Seccion: ${e.seccion}`);
-    });
+    console.clear();
+    console.log("--- LISTADO DE ESTUDIANTES ---\n");
+    if(estudiantes.length === 0) {
+        console.log("No hay estudiantes registrados");
+    } else {
+        estudiantes.forEach(e => {
+            console.log(`Cedula: ${e.cedula} | Nombre: ${e.nombre} ${e.apellido} | Año: ${e.año} | Seccion: ${e.seccion}`);
+        });
+    }
+    pausar();
 }
 
 function colocarNota(){
-    let cedula = prompt("Cedula del estudiante: ");
+    console.clear();
+    let cedula = prompt("Cedula del estudiante para colocar nota: ");
     let est = estudiantes.find(e => e.cedula === cedula);
-    if(!est) return console.log("❌ Estudiante no encontrado");
+    
+    if(!est) {
+        console.log("❌ Estudiante no encontrado");
+        return pausar();
+    }
 
     let materia = prompt("Materia (matematica/lenguaje/historia): ").toLowerCase();
-    if(!est.notas[materia]) return console.log("❌ Materia no valida");
+    if(!est.notas[materia]) {
+        console.log("❌ Materia no valida");
+        return pausar();
+    }
 
     let lapso = prompt("Lapso (l1/l2/l3): ").toLowerCase();
-    if(est.notas[materia][lapso] === undefined) return console.log("❌ Lapso no valido");
+    if(est.notas[materia][lapso] === undefined) {
+        console.log("❌ Lapso no valido");
+        return pausar();
+    }
 
-    est.notas[materia][lapso] = parseFloat(prompt("Nota: "));
+    // Validación de entrada numérica
+    let nuevaNota = parseFloat(prompt(`Ingrese la nota para ${materia} (${lapso}): `));
+    
+    if (isNaN(nuevaNota) || nuevaNota < 0 || nuevaNota > 20) {
+        console.log("❌ Error: Ingrese un número válido entre 0 y 20.");
+        return pausar();
+    }
+
+    // Actualización de datos
+    est.notas[materia][lapso] = nuevaNota;
     db.guardarDatos(estudiantes);
-    console.log("✅ Nota registrada");
+
+    // --- CÁLCULO EN TIEMPO REAL ---
+    console.log("\n-----------------------------------------");
+    console.log(`✅ Nota guardada exitosamente.`);
+    
+    // Usamos tu lógica existente para mostrar el impacto inmediato
+    let nuevoPromedio = logica.calcularPromedioMateria(est.notas[materia]);
+    
+    console.log(`📊 Promedio actualizado de ${materia.toUpperCase()}: ${nuevoPromedio}`);
+    
+    // Feedback visual según la nota (opcional pero le da puntos extra al proyecto)
+    if (nuevoPromedio >= 10) {
+        console.log("Estado: 🟢 Aprobado");
+    } else {
+        console.log("Estado: 🔴 Reprobado (Requiere recuperación)");
+    }
+    console.log("-----------------------------------------\n");
+
+    pausar();
 }
 
-function verBoletin(){
-    let cedula = prompt("Cedula del estudiante: ");
-    let est = estudiantes.find(e => e.cedula === cedula);
-    if(!est) return console.log("❌ Estudiante no encontrado");
 
-    console.log(`\n========== BOLETIN: ${est.nombre} ${est.apellido} ==========`);
-    console.log("Materia\t\tL1\tL2\tL3\tProm");
-    for(let materia in est.notas){
-        let n = est.notas[materia];
-        let prom = logica.calcularPromedioMateria(n);
-        console.log(`${materia}\t${n.l1}\t${n.l2}\t${n.l3}\t${prom}`);
+function verBoletin() {
+    let cedula = prompt("Cedula del estudiante para ver boletín: ");
+    let est = estudiantes.find(e => e.cedula === cedula);
+
+    if (!est) {
+        console.log("❌ Estudiante no encontrado");
+        return pausar();
+    }
+
+    let editando = true;
+
+    while (editando) {
+        console.clear();
+        console.log(`\n========== BOLETIN INTERACTIVO: ${est.nombre} ${est.apellido} ==========`);
+        console.log("Materia\t\tL1\tL2\tL3\tProm\tEstado");
+        console.log("------------------------------------------------------------");
+
+        for (let materia in est.notas) {
+            let n = est.notas[materia];
+            let prom = logica.calcularPromedioMateria(n);
+            let estado = prom >= 10 ? "🟢" : "🔴";
+            // Usamos .padEnd para que las columnas queden alineadas
+            console.log(`${materia.padEnd(12)}\t${n.l1}\t${n.l2}\t${n.l3}\t${prom}\t${estado}`);
+        }
+        console.log("------------------------------------------------------------");
+        
+        console.log("\n[ E ] Editar una nota | [ ENTER ] Volver al menú principal");
+        let accion = prompt("Seleccione una opción: ").toLowerCase();
+
+        if (accion === 'e') {
+            let matInput = prompt("¿Qué materia desea modificar?: ").toLowerCase();
+            
+            if (est.notas[matInput]) {
+                let lapsoInput = prompt("¿Qué lapso (l1, l2, l3)?: ").toLowerCase();
+                
+                if (est.notas[matInput][lapsoInput] !== undefined) {
+                    let nuevaNota = parseFloat(prompt(`Nueva nota para ${matInput} - ${lapsoInput}: `));
+
+                    if (!isNaN(nuevaNota) && nuevaNota >= 0 && nuevaNota <= 20) {
+                        est.notas[matInput][lapsoInput] = nuevaNota;
+                        db.guardarDatos(estudiantes); // Guardamos cambios
+                        console.log("\n✅ Nota actualizada. Refrescando boletín...");
+                    } else {
+                        console.log("\n❌ Nota inválida (debe ser entre 0 y 20).");
+                        pausar();
+                    }
+                } else {
+                    console.log("\n❌ Lapso no válido.");
+                    pausar();
+                }
+            } else {
+                console.log("\n❌ Materia no encontrada en el boletín.");
+                pausar();
+            }
+        } else {
+            editando = false; // Sale del bucle y vuelve al menú principal
+        }
     }
 }
 
 function buscarEstudiante(){
-    let cedula = prompt("Cedula del estudiante: ");
+    console.clear();
+    let cedula = prompt("Cedula del estudiante a buscar: ");
     let est = estudiantes.find(e => e.cedula === cedula);
-    if(!est) return console.log("❌ No encontrado");
-
-    console.log(`\nEncontrado: ${est.nombre} ${est.apellido} | Año: ${est.año} | Seccion: ${est.seccion}`);
+    if(!est) {
+        console.log("❌ No encontrado");
+    } else {
+        console.log(`\nEncontrado: ${est.nombre} ${est.apellido} | Año: ${est.año} | Seccion: ${est.seccion}`);
+    }
+    pausar();
 }
 
 function modificarEstudiante(){
-    let cedula = prompt("Cedula: ");
+    console.clear();
+    let cedula = prompt("Cedula del estudiante a modificar: ");
     let est = estudiantes.find(e => e.cedula === cedula);
-    if(!est) return console.log("❌ No encontrado");
+    if(!est) {
+        console.log("❌ No encontrado");
+        return pausar();
+    }
 
     est.nombre = prompt("Nuevo nombre: ");
     est.apellido = prompt("Nuevo apellido: ");
@@ -98,16 +211,27 @@ function modificarEstudiante(){
     est.seccion = prompt("Nueva seccion: ");
     db.guardarDatos(estudiantes);
     console.log("✅ Datos modificados");
+    pausar();
 }
 
 function eliminarEstudiante(){
-    let cedula = prompt("Cedula: ");
+    console.clear();
+    let cedula = prompt("Cedula del estudiante a eliminar: ");
     let index = estudiantes.findIndex(e => e.cedula === cedula);
-    if(index === -1) return console.log("❌ No encontrado");
+    if(index === -1) {
+        console.log("❌ No encontrado");
+        return pausar();
+    }
 
-    estudiantes.splice(index, 1);
-    db.guardarDatos(estudiantes);
-    console.log("✅ Estudiante eliminado");
+    let confirmar = prompt(`¿Seguro que desea eliminar a ${estudiantes[index].nombre}? (s/n): `);
+    if(confirmar.toLowerCase() === 's') {
+        estudiantes.splice(index, 1);
+        db.guardarDatos(estudiantes);
+        console.log("✅ Estudiante eliminado");
+    } else {
+        console.log("Operación cancelada");
+    }
+    pausar();
 }
 
 // ================= MENU =================
@@ -115,33 +239,33 @@ function eliminarEstudiante(){
 function ejecutarMenu(){
     let opcion;
     do {
-        console.log("\n====== CONTROL DE ESTUDIO ======");
+        console.clear();
+        console.log("\n====== SISTEMA DE CONTROL DE ESTUDIO ======");
         console.log("1. Registrar estudiante");
-        console.log("2. Mostrar estudiantes");
-        console.log("3. Colocar nota");
-        console.log("4. Ver boletin");
-        console.log("5. Buscar estudiante");
-        console.log("6. Modificar estudiante");
-        console.log("7. Eliminar estudiante");
-        console.log("8. Salir");
+        console.log("2. Listado general");
+        console.log("3. Gestionar Notas y Boletín"); // <--- Consolidado
+        console.log("4. Buscar estudiante");
+        console.log("5. Modificar datos personales");
+        console.log("6. Eliminar estudiante");
+        console.log("7. Salir");
 
         opcion = prompt("Seleccione una opcion: ");
 
         switch(opcion){
             case "1": registrarEstudiante(); break;
             case "2": mostrarEstudiantes(); break;
-            case "3": colocarNota(); break;
-            case "4": verBoletin(); break;
-            case "5": buscarEstudiante(); break;
-            case "6": modificarEstudiante(); break;
-            case "7": eliminarEstudiante(); break;
-            case "8": console.log("Saliendo del sistema..."); break;
-            default: console.log("Opcion invalida");
+            case "3": verBoletin(); break; // Esta ahora lo hace todo
+            case "4": buscarEstudiante(); break;
+            case "5": modificarEstudiante(); break;
+            case "6": eliminarEstudiante(); break;
+            case "7": console.log("Saliendo..."); break;
+            default: 
+                console.log("Opcion invalida");
+                pausar();
         }
-    } while(opcion !== "8");
+    } while(opcion !== "7");
 }
 
 if(login()) ejecutarMenu();
-
 
 
